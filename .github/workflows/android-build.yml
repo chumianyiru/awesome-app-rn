@@ -2,91 +2,60 @@ name: Android Build
 
 on:
   push:
-    branches: [ main, master ]
-    paths-ignore:
-      - '**.md'
-      - 'ios/**'
-  pull_request:
-    branches: [ main, master ]
-    paths-ignore:
-      - '**.md'
-      - 'ios/**'
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      buildType:
-        description: 'Build type'
-        required: true
-        default: 'release'
-        type: choice
-        options:
-          - debug
-          - release
 
 jobs:
   build:
     name: Build Android APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-      - name: Install dependencies
-        run: npm install
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.0.2'
 
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
+    - name: Install dependencies
+      run: |
+        npm install --legacy-peer-deps
 
-      - name: Generate Gradle Wrapper if needed
-        working-directory: android
-        run: |
-          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "Downloading gradle wrapper..."
-            mkdir -p gradle/wrapper
-            curl -sL -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradle/wrapper/gradle-wrapper.jar
-          fi
+    - name: Generate Gradle Wrapper if needed
+      working-directory: android
+      run: |
+        if [ ! -f "gradlew" ]; then
+          echo "Generating gradle wrapper..."
+          gradle wrapper --gradle-version 8.0.2
+        fi
+        chmod +x gradlew
 
-      - name: Build APK
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew clean
-          if [ "${{ github.event.inputs.buildType }}" = "debug" ]; then
-            ./gradlew assembleDebug --no-daemon --stacktrace
-          else
-            ./gradlew assembleRelease --no-daemon --stacktrace
-          fi
+    - name: Build Android Release APK
+      working-directory: android
+      run: |
+        ./gradlew assembleRelease
 
-      - name: Build AAB (Release)
-        if: github.event.inputs.buildType != 'debug'
-        working-directory: android
-        run: |
-          ./gradlew bundleRelease --no-daemon --stacktrace
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: android/app/build/outputs/apk/release/*.apk
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-android-apk
-          path: |
-            android/app/build/outputs/apk/**/*.apk
-          retention-days: 30
-
-      - name: Upload AAB artifact
-        if: github.event.inputs.buildType != 'debug'
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-android-aab
-          path: |
-            android/app/build/outputs/bundle/**/*.aab
-          retention-days: 30
+    - name: Upload AAB (App Bundle)
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-aab
+        path: android/app/build/outputs/bundle/release/*.aab
