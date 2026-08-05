@@ -30,8 +30,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -45,51 +43,42 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-
       - name: Install dependencies
-        run: |
-          npm install
-          npm run start -- --reset-cache || true
+        run: npm install
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Make Gradle executable
+      - name: Make gradlew executable
         run: chmod +x android/gradlew
+
+      - name: Generate Gradle Wrapper if needed
+        working-directory: android
+        run: |
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "Checking for system gradle..."
+            if command -v gradle &> /dev/null; then
+              gradle wrapper --gradle-version 8.3
+            else
+              echo "Downloading gradle wrapper..."
+              mkdir -p gradle/wrapper
+              curl -sL -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.3.0/gradle/wrapper/gradle-wrapper.jar
+            fi
+          fi
 
       - name: Build APK
         working-directory: android
         run: |
+          chmod +x gradlew
           ./gradlew clean
-          ./gradlew assemble${{ github.event.inputs.buildType == 'debug' && 'Debug' || 'Release' }} --no-daemon
+          if [ "${{ github.event.inputs.buildType }}" = "debug" ]; then
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          else
+            ./gradlew assembleRelease --no-daemon --stacktrace
+          fi
 
-      - name: Build AAB (Play Store)
+      - name: Build AAB (Release)
         if: github.event.inputs.buildType != 'debug'
         working-directory: android
         run: |
-          ./gradlew bundleRelease --no-daemon
-
-      - name: Sign APK (if keystore provided)
-        if: ${{ github.event.inputs.buildType != 'debug' && secrets.KEYSTORE_FILE != '' }}
-        id: sign_apk
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: android/app/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.KEYSTORE_FILE }}
-          alias: ${{ secrets.KEYSTORE_ALIAS }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
+          ./gradlew bundleRelease --no-daemon --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -107,14 +96,3 @@ jobs:
           path: |
             android/app/build/outputs/bundle/**/*.aab
           retention-days: 30
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            android/app/build/outputs/apk/release/*.apk
-            android/app/build/outputs/bundle/release/*.aab
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
