@@ -87,7 +87,7 @@ class HistoryPage extends StatelessWidget {
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
+                    color: colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: ListTile(

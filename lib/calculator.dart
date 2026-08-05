@@ -287,7 +287,7 @@ class _CalculatorState extends State<Calculator> {
       bgColor = colorScheme.tertiaryContainer;
       fgColor = colorScheme.onTertiaryContainer;
     } else {
-      bgColor = colorScheme.surfaceContainerHighest;
+      bgColor = colorScheme.surfaceVariant;
       fgColor = colorScheme.onSurface;
     }
 
