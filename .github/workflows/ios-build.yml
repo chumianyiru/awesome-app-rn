@@ -1,0 +1,130 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'android/**'
+  pull_request:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'android/**'
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Build configuration'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Debug
+          - Release
+      exportMethod:
+        description: 'Export method'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - ad-hoc
+          - app-store
+          - enterprise
+
+jobs:
+  build:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          gem install cocoapods -v 1.15.2
+          pod install --repo-update
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Install signing certificates
+        if: ${{ secrets.IOS_CERTIFICATE != '' }}
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.IOS_CERTIFICATE }}
+          p12-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+
+      - name: Install provisioning profile
+        if: ${{ secrets.IOS_PROVISIONING_PROFILE != '' }}
+        uses: apple-actions/download-provisioning-profiles@v2
+        with:
+          bundle-id: 'com.awesomeapp.app'
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+
+      - name: Build Archive
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -workspace AwesomeApp.xcworkspace \
+            -scheme AwesomeApp \
+            -configuration ${{ github.event.inputs.configuration || 'Release' }} \
+            -sdk iphoneos \
+            -archivePath build/AwesomeApp.xcarchive \
+            -destination 'generic/platform=iOS' \
+            clean archive \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM=${{ secrets.DEVELOPMENT_TEAM_ID || '' }}
+
+      - name: Export IPA
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/AwesomeApp.xcarchive \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath build/ipa \
+            -allowProvisioningUpdates
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-ios-ipa
+          path: ios/build/ipa/*.ipa
+          retention-days: 30
+
+      - name: Upload dSYM artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-ios-dsym
+          path: ios/build/AwesomeApp.xcarchive/dSYMs/*.dSYM
+          retention-days: 30
+
+      - name: Deploy to TestFlight
+        if: ${{ github.event.inputs.exportMethod == 'app-store' && secrets.APPSTORE_API_KEY_ID != '' }}
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          ipa-path: ios/build/ipa/AwesomeApp.ipa
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}

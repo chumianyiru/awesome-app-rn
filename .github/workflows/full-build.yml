@@ -1,0 +1,56 @@
+name: Full Build (iOS + Android)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android
+    uses: ./.github/workflows/android-build.yml
+    secrets: inherit
+
+  build-ios:
+    name: Build iOS
+    uses: ./.github/workflows/ios-build.yml
+    secrets: inherit
+
+  release:
+    name: Create Release
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: app-android-apk
+          path: artifacts/android
+
+      - name: Download Android AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: app-android-aab
+          path: artifacts/android
+
+      - name: Download iOS IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: app-ios-ipa
+          path: artifacts/ios
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/android/**/*.apk
+            artifacts/android/**/*.aab
+            artifacts/ios/**/*.ipa
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
