@@ -26,7 +26,7 @@ class CalculatorApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'Calculator',
+      title: '计算器',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

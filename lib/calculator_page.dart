@@ -45,12 +45,12 @@ class _CalculatorPageState extends State<CalculatorPage> {
           NavigationDestination(
             icon: Icon(Icons.calculate_outlined),
             selectedIcon: Icon(Icons.calculate),
-            label: 'Calculator',
+            label: '计算器',
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
-            label: 'History',
+            label: '历史记录',
           ),
         ],
       ),

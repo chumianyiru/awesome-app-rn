@@ -16,7 +16,7 @@ class HistoryPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('History'),
+        title: const Text('历史记录'),
         actions: [
           if (history.isNotEmpty)
             IconButton(
@@ -25,19 +25,19 @@ class HistoryPage extends StatelessWidget {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Clear History'),
-                    content: const Text('Are you sure you want to clear all history?'),
+                    title: const Text('清空历史记录'),
+                    content: const Text('确定要清空所有计算历史吗？'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                        child: const Text('取消'),
                       ),
                       TextButton(
                         onPressed: () {
                           onClear();
                           Navigator.pop(context);
                         },
-                        child: const Text('Clear'),
+                        child: const Text('清空'),
                       ),
                     ],
                   ),
@@ -58,7 +58,7 @@ class HistoryPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No history yet',
+                    '暂无历史记录',
                     style: TextStyle(
                       fontSize: 18,
                       color: colorScheme.onSurfaceVariant,
@@ -66,7 +66,7 @@ class HistoryPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Calculations will appear here',
+                    '计算结果将显示在这里',
                     style: TextStyle(
                       fontSize: 14,
                       color: colorScheme.outline,
