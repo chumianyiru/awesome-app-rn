@@ -41,7 +41,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
         run: npm install
@@ -53,14 +52,9 @@ jobs:
         working-directory: android
         run: |
           if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "Checking for system gradle..."
-            if command -v gradle &> /dev/null; then
-              gradle wrapper --gradle-version 8.3
-            else
-              echo "Downloading gradle wrapper..."
-              mkdir -p gradle/wrapper
-              curl -sL -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.3.0/gradle/wrapper/gradle-wrapper.jar
-            fi
+            echo "Downloading gradle wrapper..."
+            mkdir -p gradle/wrapper
+            curl -sL -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradle/wrapper/gradle-wrapper.jar
           fi
 
       - name: Build APK
